@@ -1,0 +1,60 @@
+[project]
+name = "junction"
+version = "0.1.0"
+description = "Iontrap simulation utilities"
+readme = "README.md"
+authors = [
+    { name = "True Merrill", email = "truemerrill@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.3",
+    "jax>=0.8",
+    "jaxopt>=0.8",
+    "jaxtyping>=0.3",
+    "interpax>=0.3",
+    "diffrax>=0.7"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.optional-dependencies]
+
+dev = [
+    "mypy",
+    "ruff",
+    "isort",
+    "pytest"
+]
+
+docs = [
+    "mkdocs-material",
+    "mkdocstrings[python]",
+    "pymdown-extensions"
+]
+
+[tool.mypy]
+mypy_path = "stubs"
+plugins = [
+  "numpy.typing.mypy_plugin",
+]
+strict = true
+
+[tool.pyright]
+typeCheckingMode = "strict"
+include = ["src/junction"]
+extraPaths = ["src/junction"]
+
+# Relax incomplete third-party typing (e.g. jax, jax.numpy)
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+reportUnknownParameterType = false
+reportUnknownArgumentType = false
+reportMissingTypeStubs = false
+
+[tool.ruff.lint]
+ignore = [
+    "F722",
+]
