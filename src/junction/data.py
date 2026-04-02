@@ -1,8 +1,9 @@
 import jax.numpy as jnp
 from interpax import Interpolator1D
-from .species import CALCIUM_40
-from junction.potential import TransportProblem, ParameterFn, Scalar, Vector
 
+from junction.potential import ParameterFn, Scalar, TransportProblem, Vector
+
+from .species import CALCIUM_40
 
 # -----------------------------------------------------------------------------
 # Data extracted from Figure 4 from
@@ -483,19 +484,19 @@ mode_3 = Interpolator1D(
 def mirror(fn: ParameterFn, max: float, min: float) -> ParameterFn:
 
     def reflect(s: Scalar) -> Scalar:
-        left = jnp.asarray(max +  (min - max) * s / 0.5, dtype=jnp.float64)
-        right = jnp.asarray(min +  (max - min) * (s - 0.5) / 0.5, dtype=jnp.float64)
+        left = jnp.asarray(max + (min - max) * s / 0.5, dtype=jnp.float64)
+        right = jnp.asarray(min + (max - min) * (s - 0.5) / 0.5, dtype=jnp.float64)
         return jnp.where(s < 0.5, left, right)
-    
+
     def mirrored_fn(s: Scalar) -> Scalar:
         x = reflect(s)
         return fn(x)
-    
+
     return mirrored_fn
 
 
 def ramp(x0: float, x1: float, x2: float) -> ParameterFn:
-    
+
     def r(s: Scalar) -> Scalar:
         left = jnp.asarray(x0 + (x1 - x0) * (s / 0.5), dtype=jnp.float64)
         right = jnp.asarray(x1 + (x2 - x1) * ((s - 0.5) / 0.5), dtype=jnp.float64)
@@ -522,20 +523,14 @@ def problem() -> TransportProblem:
     qz = mirror(yb_z_position, 350, 0)
 
     def qbar(z: Scalar) -> Vector:
-        return jnp.asarray([
-            qx(z), qy(z), qz(z)
-        ]).flatten()
-    
+        return jnp.asarray([qx(z), qy(z), qz(z)]).flatten()
+
     return TransportProblem(
-        ion = CALCIUM_40,
-        qbar = qbar,
-        freqs = (
-            mirror(mode_1, 350, 0),
-            mirror(mode_2, 350, 0),
-            mirror(mode_3, 350, 0)
-        ),
-        theta = mirror(crystal_angle, 350, 0),
-        phi = step(0, 90),
-        z_start = jnp.array(0.0),
-        z_stop = jnp.array(1.0)
+        ion=CALCIUM_40,
+        qbar=qbar,
+        freqs=(mirror(mode_1, 350, 0), mirror(mode_2, 350, 0), mirror(mode_3, 350, 0)),
+        theta=mirror(crystal_angle, 350, 0),
+        phi=step(0, 90),
+        z_start=jnp.array(0.0),
+        z_stop=jnp.array(1.0),
     )

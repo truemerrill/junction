@@ -1,10 +1,9 @@
-from junction.data import problem
-from junction.potential import S, M, K, Omega_tau, Omega2, modes
 import jax.numpy as jnp
 
+from junction.data import problem
+from junction.potential import K, M, Omega2, Omega_tau, S, modes
 
 PROBLEM = problem()
-
 
 
 def test_S_has_correct_shape():
@@ -72,9 +71,7 @@ def test_Omega_tau_power_zero_is_identity():
 
 def test_Omega_tau_entries_match_final_angular_frequencies():
     z = PROBLEM.z_stop
-    expected = jnp.diag(
-        jnp.array([2 * jnp.pi * freq(z) for freq in PROBLEM.freqs])
-    )
+    expected = jnp.diag(jnp.array([2 * jnp.pi * freq(z) for freq in PROBLEM.freqs]))
     actual = Omega_tau(PROBLEM, power=1.0)
     assert jnp.allclose(actual, expected)
 

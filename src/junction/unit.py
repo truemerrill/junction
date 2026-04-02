@@ -229,7 +229,7 @@ class Constants:
             float: a second in the computational unit system.
         """
         return to_comp(1.0, dimension.time)
-    
+
     @property
     def s(self) -> float:
         """Second.

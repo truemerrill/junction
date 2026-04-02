@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from .unit import constants
 
 
-
 @dataclass(frozen=True)
 class IonSpecies:
     name: str

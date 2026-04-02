@@ -55,7 +55,7 @@ class Yoshida4(AbstractSolver):
 
         # Forest–Ruth / Yoshida coefficients (4th order via 3x Strang composition)
         #
-        # w1 = 1 / (2 - 2^(1/3)), 
+        # w1 = 1 / (2 - 2^(1/3)),
         # w0 = -2^(1/3) / (2 - 2^(1/3))
 
         two_to_third: float = 2.0 ** (1.0 / 3.0)

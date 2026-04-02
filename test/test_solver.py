@@ -1,8 +1,8 @@
 import jax
 import jax.numpy as jnp
+from diffrax import ConstantStepSize, ODETerm, SaveAt, diffeqsolve
 from jaxtyping import Array
 
-from diffrax import diffeqsolve, ODETerm, SaveAt, ConstantStepSize
 from junction.yoshida4 import Yoshida4
 
 
@@ -15,11 +15,11 @@ def test_yoshida_forest_ruth_converges_4th_order_harmonic_oscillator():
     k = 2.0
     w = jnp.sqrt(k / m)
 
-    def f_q(t, p, args): # type: ignore
+    def f_q(t, p, args):  # type: ignore
         # dq/dt depends on p only
         return p / m
 
-    def f_p(t, q, args): # type: ignore
+    def f_p(t, q, args):  # type: ignore
         # dp/dt depends on q only
         return -k * q
 
@@ -45,7 +45,7 @@ def test_yoshida_forest_ruth_converges_4th_order_harmonic_oscillator():
 
     y_exact = exact(t1)
 
-    def solve(dt0): # type: ignore
+    def solve(dt0):  # type: ignore
         sol = diffeqsolve(
             terms=(term_q, term_p),
             solver=solver,
@@ -58,8 +58,8 @@ def test_yoshida_forest_ruth_converges_4th_order_harmonic_oscillator():
             max_steps=int((t1 - t0) / dt0) + 10,
         )
         # saveat(t1=True) returns shape (1,) for each component
-        qT = sol.ys[0][-1] # type: ignore
-        pT = sol.ys[1][-1] # type: ignore
+        qT = sol.ys[0][-1]  # type: ignore
+        pT = sol.ys[1][-1]  # type: ignore
         return qT, pT
 
     dt = 1e-2

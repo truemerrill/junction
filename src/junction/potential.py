@@ -1,11 +1,11 @@
+from dataclasses import dataclass
+from typing import Callable, TypeAlias
+
 import jax
 import jax.numpy as jnp
-
-from dataclasses import dataclass
-from .species import IonSpecies
-from typing import Callable, TypeAlias
 from jaxtyping import Array, Float
 
+from .species import IonSpecies
 
 jax.config.update("jax_enable_x64", True)
 
@@ -42,22 +42,26 @@ def _rotate_y(angle: Scalar) -> Matrix:
     """Rotation matrix about the y-axis."""
     c = jnp.cos(angle * jnp.pi / 180)
     s = jnp.sin(angle * jnp.pi / 180)
-    return jnp.array([
-        [ c,  0.0,  s],
-        [0.0, 1.0, 0.0],
-        [-s,  0.0,  c],
-    ])
+    return jnp.array(
+        [
+            [c, 0.0, s],
+            [0.0, 1.0, 0.0],
+            [-s, 0.0, c],
+        ]
+    )
 
 
 def _rotate_z(angle: Scalar) -> Matrix:
     """Rotation matrix about the z-axis."""
     c = jnp.cos(angle * jnp.pi / 180)
     s = jnp.sin(angle * jnp.pi / 180)
-    return jnp.array([
-        [ c, -s, 0.0],
-        [ s,  c, 0.0],
-        [0.0, 0.0, 1.0],
-    ])
+    return jnp.array(
+        [
+            [c, -s, 0.0],
+            [s, c, 0.0],
+            [0.0, 0.0, 1.0],
+        ]
+    )
 
 
 @dataclass(frozen=True)
@@ -111,7 +115,7 @@ def M(problem: TransportProblem, power: float = 1.0) -> Matrix:
     """Calculate the mass matrix raised to some power.
 
     Note:
-        The mass matrix is always diagonal    
+        The mass matrix is always diagonal
 
     Args:
         problem (TransportProblem): the transport problem.
@@ -122,7 +126,7 @@ def M(problem: TransportProblem, power: float = 1.0) -> Matrix:
         Matrix: the mass matrix raised to the power
     """
     m = problem.ion.mass
-    return (m ** power) * jnp.eye(3)
+    return (m**power) * jnp.eye(3)
 
 
 def Omega_tau(problem: TransportProblem, power: float = 1.0) -> Matrix:
@@ -140,14 +144,12 @@ def Omega_tau(problem: TransportProblem, power: float = 1.0) -> Matrix:
         Matrix: the \\Omega_\\tau matrix raised to the power
     """
     z = problem.z_stop
-    w = jnp.array([
-        (_angular_freq(freq(z)) ** power) for freq in problem.freqs
-    ])
+    w = jnp.array([(_angular_freq(freq(z)) ** power) for freq in problem.freqs])
     return jnp.diag(w)
 
 
 def K(problem: TransportProblem, z: Scalar) -> Matrix:
-    """Calculate the Hessian of the potential 
+    """Calculate the Hessian of the potential
 
     Args:
         problem (TransportProblem): the transport problem
@@ -169,7 +171,7 @@ def Omega2(problem: TransportProblem, z: Scalar) -> Matrix:
     """Calculate the Omega^2 matrix
 
     Note:
-        This matrix is diagonal at the endpoint.        
+        This matrix is diagonal at the endpoint.
 
     Args:
         problem (TransportProblem): the transport problem
@@ -178,7 +180,7 @@ def Omega2(problem: TransportProblem, z: Scalar) -> Matrix:
     Returns:
         Matrix: the Omega^2 matrix
     """
-    M_minus_one_half = M(problem, - 0.5)
+    M_minus_one_half = M(problem, -0.5)
     S_ = S(problem)
     K_ = K(problem, z)
     return S_.T @ M_minus_one_half @ K_ @ M_minus_one_half @ S_
@@ -212,26 +214,26 @@ def modes(problem: TransportProblem, z: Scalar, scale: float = 1.0) -> Matrix:
 #     freq_3: ParameterFn,
 #     theta: ParameterFn,
 #     phi: ParameterFn,
-#     mass: float 
+#     mass: float
 # ) -> tuple[
 #         Callable[[Scalar], Matrix],
 #         Callable[[Scalar], Matrix],
 #     ]:
-    
+
 #     def eigenvalue(mass: float, freq: Scalar) -> Scalar:
 #         omega = 2 * jnp.pi * freq
 #         return mass * (omega ** 2)
 
-#     def omega_squared(z: Scalar) -> Matrix:        
+#     def omega_squared(z: Scalar) -> Matrix:
 #         k = jnp.array([
 #             eigenvalue(mass, freq_1(z)),
 #             eigenvalue(mass, freq_2(z)),
 #             eigenvalue(mass, freq_3(z))
 #         ])
-        
+
 #         Omega2 = jnp.diag(k)
 #         return Omega2
-    
+
 #     def potential_hessian(z: Scalar) -> Matrix:
 #         Omega2 = omega_squared(z)
 #         Ry = _rotate_y(theta(z))
