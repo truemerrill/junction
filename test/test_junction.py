@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 
-from junction.data import problem
-from junction.potential import K, M, Omega2, Omega_tau, S, modes
+from junction.problem import problem
+from junction.dynamics import K, M, Omega2, Omega_tau, S, modes
 
 PROBLEM = problem()
 

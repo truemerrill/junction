@@ -1,37 +1,10 @@
-from dataclasses import dataclass
-from typing import Callable, TypeAlias
-
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, Float
 
-from .species import IonSpecies
+from .problem import TransportProblem
+from .types import Matrix, Scalar
 
 jax.config.update("jax_enable_x64", True)
-
-
-Scalar: TypeAlias = Float[Array, ""]
-"""A jax-differentiable scalar"""
-
-Vector: TypeAlias = Float[Array, "3"]
-"""A 3-vector of reals"""
-
-Matrix: TypeAlias = Float[Array, "3 3"]
-"""A 3x3 matrix of reals"""
-
-ParameterFn: TypeAlias = Callable[[Scalar], Scalar]
-"""A function which maps between the waveform index and some scalar parameter."""
-
-VectorFn: TypeAlias = Callable[[Scalar], Vector]
-"""A function which maps between the waveform index and a vector."""
-
-ModeFreqs: TypeAlias = tuple[ParameterFn, ParameterFn, ParameterFn]
-"""Tuple of functions for the mode frequencies of the three principle axes."""
-
-
-x = jnp.array([1, 0, 0])
-y = jnp.array([0, 1, 0])
-z = jnp.array([0, 0, 1])
 
 
 def _angular_freq(freq: Scalar) -> Scalar:
@@ -62,33 +35,6 @@ def _rotate_z(angle: Scalar) -> Matrix:
             [0.0, 0.0, 1.0],
         ]
     )
-
-
-@dataclass(frozen=True)
-class TransportProblem:
-    """Parameterization for a single-ion transport problem.
-
-    Attributes:
-        ion (IonSpecies): the ion species.
-        qbar (VectorFn): function giving the equilibrium coordinate as a
-            function of the waveform index.
-        freqs (ModeFreqs): tuple of functions for the mode frequencies of the
-            three principle axes.
-        theta (ParameterFn): function describing the rotation angle about the
-            z axis (in degrees) between the axial mode and the x axis.
-        phi (ParameterFn): function describing the rotation angle about the
-            y axis (in degrees) between the axial mode and the x axis.
-        z_start (Scalar): the starting waveform index.
-        z_stop (Scalar): the stopping waveform index.
-    """
-
-    ion: IonSpecies
-    qbar: VectorFn
-    freqs: ModeFreqs
-    theta: ParameterFn
-    phi: ParameterFn
-    z_start: Scalar
-    z_stop: Scalar
 
 
 def S(problem: TransportProblem, z: Scalar | None = None) -> Matrix:
@@ -206,38 +152,3 @@ def modes(problem: TransportProblem, z: Scalar, scale: float = 1.0) -> Matrix:
     v = jnp.array([scale * freq(z) for freq in problem.freqs])
     S_ = S(problem, z)
     return S_ @ jnp.diag(v)
-
-
-# def modes(
-#     freq_1: ParameterFn,
-#     freq_2: ParameterFn,
-#     freq_3: ParameterFn,
-#     theta: ParameterFn,
-#     phi: ParameterFn,
-#     mass: float
-# ) -> tuple[
-#         Callable[[Scalar], Matrix],
-#         Callable[[Scalar], Matrix],
-#     ]:
-
-#     def eigenvalue(mass: float, freq: Scalar) -> Scalar:
-#         omega = 2 * jnp.pi * freq
-#         return mass * (omega ** 2)
-
-#     def omega_squared(z: Scalar) -> Matrix:
-#         k = jnp.array([
-#             eigenvalue(mass, freq_1(z)),
-#             eigenvalue(mass, freq_2(z)),
-#             eigenvalue(mass, freq_3(z))
-#         ])
-
-#         Omega2 = jnp.diag(k)
-#         return Omega2
-
-#     def potential_hessian(z: Scalar) -> Matrix:
-#         Omega2 = omega_squared(z)
-#         Ry = _rotate_y(theta(z))
-#         Rz = _rotate_z(phi(z))
-#         return Rz @ Ry @ Omega2 @ Ry.T @ Rz.T
-
-#     return omega_squared, potential_hessian
