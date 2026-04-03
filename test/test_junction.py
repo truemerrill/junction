@@ -1,7 +1,6 @@
 import jax.numpy as jnp
 
 from junction.dynamics import (
-    b_matrix,
     fundamental_matrix,
     hessian_matrix,
     m_matrix,
@@ -10,10 +9,10 @@ from junction.dynamics import (
     omega_tau_matrix,
     s_matrix,
 )
-from junction.problem import problem
+from junction.problem import stationary_problem
 from junction.unit import constants as c
 
-PROBLEM = problem()
+PROBLEM = stationary_problem()
 
 
 def test_S_has_correct_shape():
@@ -155,43 +154,6 @@ def test_modes_columns_are_orthogonal_when_normalized():
     U = V / norms[None, :]
 
     assert jnp.allclose(U.T @ U, jnp.eye(3))
-
-
-def test_b_matrix_has_expected_shape():
-    B = b_matrix()
-    assert B.shape == (6, 3)
-
-
-def test_b_matrix_has_expected_block_structure():
-    B = b_matrix()
-
-    assert jnp.allclose(B[:3, :], jnp.zeros((3, 3)))
-    assert jnp.allclose(B[3:, :], jnp.eye(3))
-
-
-def test_b_matrix_matches_kron_definition():
-    B = b_matrix()
-    expected = jnp.kron(
-        jnp.array([[0], [1]], dtype=jnp.float64),
-        jnp.eye(3, dtype=jnp.float64),
-    )
-
-    assert jnp.allclose(B, expected)
-
-
-def test_b_matrix_maps_force_into_momentum_components_only():
-    B = b_matrix()
-    eta = jnp.array([1.2, -3.4, 5.6], dtype=jnp.float64)
-
-    actual = B @ eta
-    expected = jnp.array([0.0, 0.0, 0.0, 1.2, -3.4, 5.6], dtype=jnp.float64)
-
-    assert jnp.allclose(actual, expected)
-
-
-def test_b_matrix_transpose_times_b_is_identity():
-    B = b_matrix()
-    assert jnp.allclose(B.T @ B, jnp.eye(3))
 
 
 def test_fundamental_matrix():

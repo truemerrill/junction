@@ -13,7 +13,8 @@ dependencies = [
     "jaxopt>=0.8",
     "jaxtyping>=0.3",
     "interpax>=0.3",
-    "diffrax>=0.7"
+    "diffrax>=0.7",
+    "matplotlib"
 ]
 
 [build-system]

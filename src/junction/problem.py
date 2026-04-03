@@ -147,7 +147,42 @@ def _step(x0: float, x1: float) -> ParameterFn:
     return fn
 
 
-def problem(
+def stationary_problem(
+    ion: IonSpecies = CALCIUM_40,
+    freqs: Vector = jnp.array(
+        [
+            1.1216216216216217 * constants.MHz,
+            1.8828828828828827 * constants.MHz,
+            2.0 * constants.MHz,
+        ]
+    ),
+) -> TransportProblem:
+
+    def waveform_index(t: Scalar) -> Scalar:
+        return jnp.array(0.0)
+
+    def qbar(z: Scalar) -> Scalar:
+        return jnp.array([0, 0, 0], dtype=jnp.float64)
+
+    def constant(freq: Scalar) -> ParameterFn:
+        def fn(z: Scalar) -> Scalar:
+            return freq
+
+        return fn
+
+    return TransportProblem(
+        ion=ion,
+        waveform_index=waveform_index,
+        qbar=qbar,
+        freqs=(constant(freqs[0]), constant(freqs[1]), constant(freqs[2])),
+        theta=constant(jnp.array(0.0)),
+        phi=constant(jnp.array(0.0)),
+        z_start=jnp.array(0.0),
+        z_stop=jnp.array(1.0),
+    )
+
+
+def junction_problem(
     speed: float = 50 * constants.meter / constants.second, ion: IonSpecies = CALCIUM_40
 ) -> TransportProblem:
     """Construct a junction transport problem from Burton et al. data.

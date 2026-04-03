@@ -3,7 +3,7 @@ import jax.numpy as jnp
 from diffrax import ConstantStepSize, ODETerm, SaveAt, diffeqsolve
 
 from .problem import TransportProblem
-from .types import Array, Matrix3, Scalar
+from .types import Matrix3, Matrix6Array, Scalar, TimeArray
 from .yoshida4 import Yoshida4
 
 jax.config.update("jax_enable_x64", True)
@@ -146,8 +146,8 @@ def omega_squared_matrix(
 
 
 def fundamental_matrix(
-    problem: TransportProblem, time: Array, dt: float | None = None
-) -> Array:
+    problem: TransportProblem, time: TimeArray, dt: float | None = None
+) -> Matrix6Array:
     """Solve for the fundamental matrix U(t) on a time grid.
 
     This solves
@@ -239,12 +239,6 @@ def fundamental_matrix(
     U = jnp.concatenate([top, bottom], axis=-2)  # (N, 6, 6)
 
     return U
-
-
-def b_matrix() -> Array:
-    return jnp.kron(
-        jnp.array([[0], [1]], dtype=jnp.float64), jnp.eye(3, dtype=jnp.float64)
-    )
 
 
 def modes(problem: TransportProblem, z: Scalar, scale: float = 1.0) -> Matrix3:
