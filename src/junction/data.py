@@ -1,7 +1,6 @@
 import jax.numpy as jnp
 from interpax import Interpolator1D
 
-
 # -----------------------------------------------------------------------------
 # Data extracted from Figure 4 from
 # [1] W. C. Burton, et al.,  Phys. Rev. Lett. 130, 173202 (2023).

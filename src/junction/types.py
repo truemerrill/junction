@@ -12,8 +12,11 @@ Scalar: TypeAlias = Float[Array, ""]
 Vector: TypeAlias = Float[Array, "3"]
 """A 3-vector of reals"""
 
-Matrix: TypeAlias = Float[Array, "3 3"]
+Matrix3: TypeAlias = Float[Array, "3 3"]
 """A 3x3 matrix of reals"""
+
+Matrix6: TypeAlias = Float[Array, "6 6"]
+"""A 6x6 matrix of reals"""
 
 ParameterFn: TypeAlias = Callable[[Scalar], Scalar]
 """A function which maps between the waveform index and some scalar parameter."""

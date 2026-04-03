@@ -1,10 +1,12 @@
 from dataclasses import dataclass
 
 import jax.numpy as jnp
+from interpax import Interpolator1D
 
 from . import data
 from .species import CALCIUM_40, IonSpecies
 from .types import ModeFreqs, ParameterFn, Scalar, Vector, VectorFn
+from .unit import constants
 
 
 @dataclass(frozen=True)
@@ -26,6 +28,7 @@ class TransportProblem:
     """
 
     ion: IonSpecies
+    waveform_index: ParameterFn
     qbar: VectorFn
     freqs: ModeFreqs
     theta: ParameterFn
@@ -37,6 +40,17 @@ class TransportProblem:
 # -----------------------------------------------------------------------------
 # Private functions, used to clean the data from W. C. Burton, et al. and to
 # construct a TransportProblem from the interpolated data.
+
+
+def _hold(fn: Interpolator1D) -> ParameterFn:
+    x_min = fn.x.min()
+    x_max = fn.x.max()
+
+    def fn_hold(x: Scalar) -> Scalar:
+        x_safe = jnp.clip(x, x_min, x_max)
+        return fn(x_safe)
+
+    return fn_hold
 
 
 def _mirror(fn: ParameterFn, x0: float, x1: float) -> ParameterFn:
@@ -57,6 +71,7 @@ def _mirror(fn: ParameterFn, x0: float, x1: float) -> ParameterFn:
         ParameterFn: a new function g(s) = fn(x(s)) where x(s) follows a
             mirrored (forward-then-reverse) path between max and min.
     """
+    fn_hold = _hold(fn) if isinstance(fn, Interpolator1D) else fn
 
     def reflect(s: Scalar) -> Scalar:
         left = jnp.asarray(x0 + (x1 - x0) * s / 0.5, dtype=jnp.float64)
@@ -65,7 +80,7 @@ def _mirror(fn: ParameterFn, x0: float, x1: float) -> ParameterFn:
 
     def mirrored_fn(s: Scalar) -> Scalar:
         x = reflect(s)
-        return fn(x)
+        return fn_hold(x)
 
     return mirrored_fn
 
@@ -132,7 +147,9 @@ def _step(x0: float, x1: float) -> ParameterFn:
     return fn
 
 
-def problem(ion: IonSpecies = CALCIUM_40) -> TransportProblem:
+def problem(
+    speed: float = 50 * constants.meter / constants.second, ion: IonSpecies = CALCIUM_40
+) -> TransportProblem:
     """Construct a junction transport problem from Burton et al. data.
 
     This function builds a ``TransportProblem`` using interpolated trajectory
@@ -152,11 +169,15 @@ def problem(ion: IonSpecies = CALCIUM_40) -> TransportProblem:
     qy = _ramp(0, 0, 350)
     qz = _mirror(data.yb_z_position, 350, 0)
 
+    def waveform_index(t: Scalar) -> Scalar:
+        return (speed / 700) * t
+
     def qbar(z: Scalar) -> Vector:
         return jnp.asarray([qx(z), qy(z), qz(z)]).flatten()
 
     return TransportProblem(
         ion=ion,
+        waveform_index=waveform_index,
         qbar=qbar,
         freqs=(
             _mirror(data.mode_1, 350, 0),
