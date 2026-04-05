@@ -42,6 +42,13 @@ class TransportProblem:
 # construct a TransportProblem from the interpolated data.
 
 
+def _constant(x0: float | Scalar) -> ParameterFn:
+    def constant_fn(s: Scalar) -> Scalar:
+        return jnp.array(x0)
+
+    return constant_fn
+
+
 def _hold(fn: Interpolator1D) -> ParameterFn:
     x_min = fn.x.min()
     x_max = fn.x.max()
@@ -164,19 +171,13 @@ def stationary_problem(
     def qbar(z: Scalar) -> Scalar:
         return jnp.array([0, 0, 0], dtype=jnp.float64)
 
-    def constant(freq: Scalar) -> ParameterFn:
-        def fn(z: Scalar) -> Scalar:
-            return freq
-
-        return fn
-
     return TransportProblem(
         ion=ion,
         waveform_index=waveform_index,
         qbar=qbar,
-        freqs=(constant(freqs[0]), constant(freqs[1]), constant(freqs[2])),
-        theta=constant(jnp.array(0.0)),
-        phi=constant(jnp.array(0.0)),
+        freqs=(_constant(freqs[0]), _constant(freqs[1]), _constant(freqs[2])),
+        theta=_constant(jnp.array(0.0)),
+        phi=_constant(jnp.array(0.0)),
         z_start=jnp.array(0.0),
         z_stop=jnp.array(1.0),
     )
@@ -220,7 +221,7 @@ def junction_problem(
             _mirror(data.mode_3, 350, 0),
         ),
         theta=_mirror(data.crystal_angle, 350, 0),
-        phi=_step(0, 90),
+        phi=_constant(0.0),
         z_start=jnp.array(0.0),
         z_stop=jnp.array(1.0),
     )

@@ -239,25 +239,3 @@ def fundamental_matrix(
     U = jnp.concatenate([top, bottom], axis=-2)  # (N, 6, 6)
 
     return U
-
-
-def modes(problem: TransportProblem, z: Scalar, scale: float = 1.0) -> Matrix3:
-    """Construct scaled mode vectors in the lab frame for visualization.
-
-    Note:
-        This function returns a (3, 3) matrix whose columns are the three
-        principal-axis mode vectors at waveform index ``z``.
-
-    Args:
-        problem (TransportProblem): the transport problem.
-        z (Scalar): the waveform index.
-        scale (float, optional): global scaling factor applied to all
-            mode lengths. Defaults to 1.0.
-
-    Returns:
-        Matrix: a (3, 3) array whose columns are the three mode vectors
-        in the lab frame.
-    """
-    v = jnp.array([scale * freq(z) for freq in problem.freqs])
-    S_ = s_matrix(problem, z)
-    return S_ @ jnp.diag(v)
