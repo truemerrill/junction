@@ -227,6 +227,7 @@ def fundamental_matrix(
         y0=y0,
         saveat=SaveAt(ts=time),
         stepsize_controller=ConstantStepSize(),
+        max_steps=2 * int((t1 - t0) / dt0) + 1,
     )
 
     if sol.ys is None:

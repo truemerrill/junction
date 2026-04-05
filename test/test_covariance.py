@@ -1,13 +1,17 @@
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
-from junction.covariance import b_matrix, covariance_colored_noise, covariance_white_noise, nbar
+from junction.covariance import (
+    b_matrix,
+    covariance_colored_noise,
+    covariance_white_noise,
+    nbar,
+    white_noise,
+)
 from junction.dynamics import fundamental_matrix, omega_tau_matrix
 from junction.problem import stationary_problem
+from junction.types import Array, Matrix3
 from junction.unit import constants as c
-from junction.types import Matrix3
-
-
 
 PROBLEM = stationary_problem()
 
@@ -49,7 +53,6 @@ def test_b_matrix_transpose_times_b_is_identity():
     assert jnp.allclose(B.T @ B, jnp.eye(3))
 
 
-
 def test_covariance_colored_noise_identity_fundamental_matrix():
     time = jnp.linspace(0.0, 14.0, 1000, dtype=jnp.float64)
 
@@ -70,33 +73,41 @@ def test_covariance_colored_noise_identity_fundamental_matrix():
     assert jnp.allclose(Sigma[-1, :, :], expected, rtol=1e-3, atol=1e-3)
 
 
-
-def test_covariance_identity_fundamental_matrix_2():
+def test_covariance_stationary_heating_rate():
     time = jnp.linspace(0.0, 14.0, 1000, dtype=jnp.float64)
 
-    # Trivial dynamics: U(t) = I for all t, so Phi(t, s) = I.
-    U = fundamental_matrix(PROBLEM, time, dt=10 * c.nanosecond)
-    Q = jnp.eye(3, dtype=jnp.float64) / 3
-    omega_tau = omega_tau_matrix(PROBLEM)
+    # A stationary potential.
+    problem = stationary_problem(freqs=jnp.array([1.0, 2.0, 3.0]) * c.MHz)
+    U = fundamental_matrix(problem, time, dt=1 * c.nanosecond)
+    omega_tau = omega_tau_matrix(problem)
+    G = white_noise(problem, power_spectral_density=1.0)
 
-    def noise_cov(s1) -> Matrix3:  # type: ignore
-        return Q
-
-    Sigma = covariance_white_noise(U, time, noise_cov)
+    Sigma = covariance_white_noise(U, time, G)
     n = nbar(Sigma, omega_tau)
 
-    fig, ax = plt.subplots()
-    ax.plot(time, n[:, 0], label=r"$\omega_1$")
-    ax.plot(time, n[:, 1], label=r"$\omega_2$")
-    ax.plot(time, n[:, 2], label=r"$\omega_3$")
-    ax.grid()
-    ax.set_xlabel("Time (µs)")
-    ax.set_ylabel(r"$\bar{n} / S_E$")
-    ax.legend()
-    plt.show()
+    # Measured slopes from linear least squares: n_j(t) ≈ a_j t + b_j
+    A = jnp.stack([time, jnp.ones_like(time)], axis=1)  # shape (T, 2)
 
-    B = b_matrix()
-    expected = (time[-1] ** 2) * (B @ Q @ B.T)
+    def fit_slope(y: Array):
+        coeffs, *_ = jnp.linalg.lstsq(A, y, rcond=None)
+        slope, intercept = coeffs
+        return slope, intercept
 
-    assert Sigma.shape == (1000, 6, 6)
-    assert jnp.allclose(Sigma[-1, :, :], expected, rtol=1e-3, atol=1e-3)
+    fits = [fit_slope(n[:, j]) for j in range(3)]
+    measured = jnp.array([f[0] for f in fits])
+
+    # Theory
+    q = problem.ion.charge
+    m = problem.ion.mass
+    hbar = c.hbar
+    omega = jnp.diag(omega_tau)
+
+    expected = q**2 / (4 * m * hbar * omega)
+
+    # Ratio check (tighter, since ratios cancel prefactor error)
+    assert jnp.allclose(
+        measured / measured[0], expected / expected[0], rtol=5e-3, atol=1e-6
+    )
+
+    # Absolute slope check (looser due to timestep error)
+    assert jnp.allclose(measured, expected, rtol=2e-2, atol=1e-6)

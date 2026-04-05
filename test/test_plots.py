@@ -1,8 +1,47 @@
-import matplotlib.pyplot as plt
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
 
-from junction.plots import plot_modes, plot_modes_path, hide_panes, plot_mode_frequencies, plot_mode_angles
-from junction.problem import junction_problem
+from junction.covariance import covariance_white_noise, nbar, white_noise
+from junction.dynamics import fundamental_matrix, omega_tau_matrix
+from junction.plots import (
+    hide_panes,
+    modes,
+    plot_mode_angles,
+    plot_mode_frequencies,
+    plot_modes,
+    plot_modes_path,
+)
+from junction.problem import junction_problem, stationary_problem
+from junction.unit import constants as c
+
+PROBLEM = junction_problem()
+
+
+def test_modes_has_correct_shape():
+    z = jnp.array(0.25)
+    V = modes(PROBLEM, z)
+    assert V.shape == (3, 3)
+
+
+def test_modes_columns_have_expected_norms_matrix():
+    z = jnp.array(0.25)
+    scale = 1.7
+    V = modes(PROBLEM, z)
+
+    expected = jnp.array([scale * freq(z) for freq in PROBLEM.freqs])
+    actual = jnp.linalg.norm(V, axis=0)
+
+    assert jnp.allclose(actual, expected)
+
+
+def test_modes_columns_are_orthogonal():
+    z = jnp.array(0.25)
+    V = modes(PROBLEM, z)
+
+    norms = jnp.linalg.norm(V, axis=0)
+    U = V / norms[None, :]
+
+    assert jnp.allclose(U.T @ U, jnp.eye(3))
 
 
 def test_plot_mode_frequencies():
@@ -35,6 +74,29 @@ def test_plot_modes_returns_three_artists_without_center():
     artists = plot_modes(ax, q, modes, center_marker="o")
     assert len(artists) == 4
 
+
+def test_plot_stationary_heating_rate():
+    time = jnp.linspace(0.0, 14.0, 1000, dtype=jnp.float64)
+
+    # A stationary potential.
+    problem = stationary_problem(freqs=jnp.array([1.0, 2.0, 3.0]))
+    U = fundamental_matrix(problem, time, dt=1 * c.nanosecond)
+    omega_tau = omega_tau_matrix(problem)
+    G = white_noise(problem)
+
+    Sigma = covariance_white_noise(U, time, G)
+    n = nbar(Sigma, omega_tau)
+
+    fig, ax = plt.subplots()
+    ax.plot(time, n[:, 0], label=r"$\omega_1$")
+    ax.plot(time, n[:, 1], label=r"$\omega_2$")
+    ax.plot(time, n[:, 2], label=r"$\omega_3$")
+    ax.grid()
+    ax.set_xlabel("Time (µs)")
+    ax.set_ylabel(r"$\bar{n} / S_E$")
+    ax.legend()
+    plt.show()
+    plt.savefig("stationary-heating-rate.png")
 
 
 def test_plot_modes_path():

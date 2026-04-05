@@ -1,6 +1,8 @@
 import jax
 import jax.numpy as jnp
 
+from .dynamics import omega_tau_matrix
+from .problem import TransportProblem
 from .types import (
     Array,
     ColoredNoiseFn,
@@ -229,14 +231,46 @@ def covariance_white_noise(
     return Sigma
 
 
+def white_noise(
+    problem: TransportProblem, power_spectral_density: float = 1.0
+) -> WhiteNoiseFn:
+    """Construct a function computing the white-noise covariance
+
+    Args:
+        problem (TransportProblem): the transport problem
+        power_spectral_density (float, optional): the electric noise power
+            spectral density. Defaults to 1.0.
+
+    Returns:
+        WhiteNoiseFn: the white noise convolution kernel
+    """
+    q = problem.ion.charge
+    m = problem.ion.mass
+    Se = power_spectral_density
+    omega_tau_inv = omega_tau_matrix(problem, power=-1.0)
+
+    def white_noise_fn(s: Scalar) -> Matrix3:
+        return (q**2 * Se) / (2 * m) * omega_tau_inv
+
+    return white_noise_fn
+
+
 def nbar(covariance_matrix: Matrix6Array, omega_tau: Matrix3) -> Array:
+    """Calculate nbar from the covariance matrix for each mode
+
+    Args:
+        covariance_matrix (Matrix6Array): the covariance matrix
+        omega_tau (Matrix3): the `\\Omega_\\tau` matrix
+
+    Returns:
+        Array: nbar for each mode
+    """
 
     def e_matrix(index: int) -> Matrix3:
         return jnp.zeros((3, 3), dtype=jnp.float64).at[index, index].set(1.0)
 
     I2 = jnp.eye(2, dtype=jnp.float64)
     omegas = jnp.diag(omega_tau)
-
     thetas = [omegas[k] * jnp.kron(I2, e_matrix(k)) for k in range(3)]
 
     def nbar(theta: Matrix3, omega: Scalar) -> Array:

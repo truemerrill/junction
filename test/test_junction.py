@@ -4,7 +4,6 @@ from junction.dynamics import (
     fundamental_matrix,
     hessian_matrix,
     m_matrix,
-    modes,
     omega_squared_matrix,
     omega_tau_matrix,
     s_matrix,
@@ -121,39 +120,6 @@ def test_Omega2_is_diagonal_at_endpoint():
     z = PROBLEM.z_stop
     Omega2_ = omega_squared_matrix(PROBLEM, z)
     assert jnp.allclose(Omega2_, jnp.diag(jnp.diag(Omega2_)))
-
-
-def test_modes_has_correct_shape():
-    z = jnp.array(0.25)
-    V = modes(PROBLEM, z)
-    assert V.shape == (3, 3)
-
-
-def test_modes_columns_have_expected_norms_matrix():
-    z = jnp.array(0.25)
-    scale = 1.7
-    V = modes(PROBLEM, z, scale=scale)
-
-    expected = jnp.array([scale * freq(z) for freq in PROBLEM.freqs])
-    actual = jnp.linalg.norm(V, axis=0)
-
-    assert jnp.allclose(actual, expected)
-
-
-def test_modes_zero_scale_returns_zero_matrix():
-    z = jnp.array(0.25)
-    V = modes(PROBLEM, z, scale=0.0)
-    assert jnp.allclose(V, jnp.zeros((3, 3)))
-
-
-def test_modes_columns_are_orthogonal_when_normalized():
-    z = jnp.array(0.25)
-    V = modes(PROBLEM, z, scale=1.0)
-
-    norms = jnp.linalg.norm(V, axis=0)
-    U = V / norms[None, :]
-
-    assert jnp.allclose(U.T @ U, jnp.eye(3))
 
 
 def test_fundamental_matrix():
