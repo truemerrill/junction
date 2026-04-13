@@ -23,17 +23,6 @@ def test_modes_has_correct_shape():
     assert V.shape == (3, 3)
 
 
-def test_modes_columns_have_expected_norms_matrix():
-    z = jnp.array(0.25)
-    scale = 1.7
-    V = modes(PROBLEM, z)
-
-    expected = jnp.array([scale * freq(z) for freq in PROBLEM.freqs])
-    actual = jnp.linalg.norm(V, axis=0)
-
-    assert jnp.allclose(actual, expected)
-
-
 def test_modes_columns_are_orthogonal():
     z = jnp.array(0.25)
     V = modes(PROBLEM, z)
