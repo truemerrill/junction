@@ -16,6 +16,19 @@ def _angular_freq(freq: Scalar) -> Scalar:
     return 2 * jnp.pi * freq
 
 
+def _rotate_x(angle: Scalar) -> Matrix3:
+    """Rotation matrix about the x-axis."""
+    c = jnp.cos(angle * jnp.pi / 180)
+    s = jnp.sin(angle * jnp.pi / 180)
+    return jnp.array(
+        [
+            [1.0, 0.0, 0.0],
+            [0.0, c, -s],
+            [0.0, s,  c],
+        ]
+    )
+
+
 def _rotate_y(angle: Scalar) -> Matrix3:
     """Rotation matrix about the y-axis."""
     c = jnp.cos(angle * jnp.pi / 180)
@@ -25,19 +38,6 @@ def _rotate_y(angle: Scalar) -> Matrix3:
             [c, 0.0, s],
             [0.0, 1.0, 0.0],
             [-s, 0.0, c],
-        ]
-    )
-
-
-def _rotate_z(angle: Scalar) -> Matrix3:
-    """Rotation matrix about the z-axis."""
-    c = jnp.cos(angle * jnp.pi / 180)
-    s = jnp.sin(angle * jnp.pi / 180)
-    return jnp.array(
-        [
-            [c, -s, 0.0],
-            [s, c, 0.0],
-            [0.0, 0.0, 1.0],
         ]
     )
 
@@ -58,8 +58,8 @@ def s_matrix(problem: TransportProblem, z: Scalar | None = None) -> Matrix3:
         z = problem.z_stop
 
     Ry = _rotate_y(problem.theta(z))
-    Rz = _rotate_z(problem.phi(z))
-    return Rz @ Ry
+    Rx = _rotate_x(problem.phi(z))
+    return Rx @ Ry
 
 
 def m_matrix(problem: TransportProblem, power: float = 1.0) -> Matrix3:

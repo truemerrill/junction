@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 
-from .dynamics import omega_tau_matrix
+from .dynamics import omega_tau_matrix, s_matrix
 from .problem import TransportProblem
 from .types import (
     Array,
@@ -252,6 +252,33 @@ def white_noise(
     def white_noise_fn(s: Scalar) -> Matrix3:
         return (q**2 * Se) / (2 * m) * omega_tau_inv
 
+    return white_noise_fn
+
+
+def white_noise_surface(
+    problem: TransportProblem, power_spectral_density: float = 1.0
+) -> WhiteNoiseFn:
+    """Construct a white noise function for fluctuating surface charges
+
+    Args:
+        problem (TransportProblem): the transport problem
+        power_spectral_density (float, optional): the electric noise power spectral density. Defaults to 1.0.
+
+    Returns:
+        WhiteNoiseFn: the white noise convolution kernel
+    """
+    q = problem.ion.charge
+    m = problem.ion.mass
+    Se = power_spectral_density
+    S = s_matrix(problem)
+    omega_tau_minus_one_half = omega_tau_matrix(problem, power=-0.5)
+    W = (3.0 / 4.0) * jnp.diag(jnp.asarray([1.0, 1.0, 2.0]))
+
+    def white_noise_fn(s: Scalar) -> Matrix3:
+        return (q**2 * Se) / (2 * m) * (
+            omega_tau_minus_one_half @ S.T @ W @ S @ omega_tau_minus_one_half
+        )
+    
     return white_noise_fn
 
 

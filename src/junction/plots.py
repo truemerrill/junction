@@ -49,6 +49,8 @@ def plot_mode_angles(
 
     lines.extend(ax.plot(t / c.microsecond, theta, label=r"$\theta$"))
     lines.extend(ax.plot(t / c.microsecond, phi, label=r"$\phi$"))
+    ax.grid()
+    ax.legend()
 
     return lines
 

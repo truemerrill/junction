@@ -1,5 +1,4 @@
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
 
 from junction.covariance import (
     b_matrix,

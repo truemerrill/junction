@@ -20,9 +20,9 @@ class TransportProblem:
         freqs (ModeFreqs): tuple of functions for the mode frequencies of the
             three principle axes.
         theta (ParameterFn): function describing the rotation angle about the
-            z axis (in degrees) between the axial mode and the x axis.
-        phi (ParameterFn): function describing the rotation angle about the
             y axis (in degrees) between the axial mode and the x axis.
+        phi (ParameterFn): function describing the rotation angle about the
+            x axis (in degrees) between the axial mode and the y axis.
         z_start (Scalar): the starting waveform index.
         z_stop (Scalar): the stopping waveform index.
     """
@@ -92,6 +92,55 @@ def _mirror(fn: ParameterFn, x0: float, x1: float) -> ParameterFn:
     return mirrored_fn
 
 
+def _hold_after_midpoint(fn: ParameterFn, x0: float, x1: float) -> ParameterFn:
+    """Follow fn on the first half, then hold its midpoint value."""
+    fn_hold = _hold(fn) if isinstance(fn, Interpolator1D) else fn
+    half = jnp.asarray(0.5, dtype=jnp.float64)
+    x1_arr = jnp.asarray(x1, dtype=jnp.float64)
+
+    def forward_coord(s: Scalar) -> Scalar:
+        return jnp.asarray(x0 + (x1 - x0) * s / 0.5, dtype=jnp.float64)
+
+    def theta_fn(s: Scalar) -> Scalar:
+        left = jnp.asarray(fn_hold(forward_coord(s)), dtype=jnp.float64)
+        right = jnp.asarray(fn_hold(x1_arr), dtype=jnp.float64)
+        return jnp.where(s <= half, left, right)
+
+    return theta_fn
+
+
+def _reverse_replay_after_midpoint(
+    fn: ParameterFn,
+    x0: float,
+    x1: float,
+    sign: float = -1.0,
+) -> ParameterFn:
+    """Keep zero on the first half, then replay fn in reverse after midpoint.
+
+    For s > 1/2 this returns
+
+        sign * (fn(x1) - fn(x_rev(s)))
+
+    so the function is continuous at s = 1/2 and starts from zero there.
+    """
+    fn_hold = _hold(fn) if isinstance(fn, Interpolator1D) else fn
+    half = jnp.asarray(0.5, dtype=jnp.float64)
+    x1_arr = jnp.asarray(x1, dtype=jnp.float64)
+
+    def reverse_coord(s: Scalar) -> Scalar:
+        return jnp.asarray(x1 + (x0 - x1) * (s - 0.5) / 0.5, dtype=jnp.float64)
+
+    def phi_fn(s: Scalar) -> Scalar:
+        left = jnp.asarray(0.0, dtype=jnp.float64)
+        right = jnp.asarray(
+            sign * (fn_hold(x1_arr) - fn_hold(reverse_coord(s))),
+            dtype=jnp.float64,
+        )
+        return jnp.where(s <= half, left, right)
+
+    return phi_fn
+
+
 def _ramp(x0: float, x1: float, x2: float) -> ParameterFn:
     """Construct a piecewise-linear ramp over the unit interval.
 
@@ -123,47 +172,26 @@ def _ramp(x0: float, x1: float, x2: float) -> ParameterFn:
     return r
 
 
-def _step(x0: float, x1: float) -> ParameterFn:
-    """Construct a piecewise-constant step function over the unit interval.
-
-    Defines a function f(s) for s ∈ [0, 1] that takes the value x0 on the
-    first half of the interval and x1 on the second half, with a discontinuity
-    at s = 0.5:
-
-        s ∈ [0, 0.5)   →   x0
-        s ∈ [0.5, 1]   →   x1
-
-    This is useful for modeling abrupt parameter changes or defining simple
-    switching behavior in waveform construction.
-
-    Args:
-        x0 (float): Value for s < 0.5 (initial segment).
-        x1 (float): Value for s ≥ 0.5 (final segment).
-
-    Returns:
-        ParameterFn: A scalar-valued function f(s) that implements the
-            step transition from x0 to x1 at s = 0.5.
-    """
-
-    x0_ = jnp.array(x0, dtype=jnp.float64)
-    x1_ = jnp.array(x1, dtype=jnp.float64)
-
-    def fn(s: Scalar) -> Scalar:
-        return jnp.where(s < 0.5, x0_, x1_)
-
-    return fn
-
-
 def stationary_problem(
     ion: IonSpecies = CALCIUM_40,
     freqs: Vector = jnp.array(
         [
-            1.1216216216216217 * constants.MHz,
-            1.8828828828828827 * constants.MHz,
+            1.1 * constants.MHz,
+            1.8 * constants.MHz,
             2.0 * constants.MHz,
         ]
     ),
 ) -> TransportProblem:
+    """Construct a problem representing a stationary potential.
+
+    Args:
+        ion (IonSpecies, optional): the ion. Defaults to CALCIUM_40.
+        freqs (Vector, optional): the mode frequencies. Defaults to
+            [1.1, 1.8, 2.0] MHz.
+
+    Returns:
+        TransportProblem: the transport problem
+    """
 
     def waveform_index(t: Scalar) -> Scalar:
         return jnp.array(0.0)
@@ -211,6 +239,9 @@ def junction_problem(
     def qbar(z: Scalar) -> Vector:
         return jnp.asarray([qx(z), qy(z), qz(z)]).flatten()
 
+    theta = _hold_after_midpoint(data.crystal_angle, 350, 0)
+    phi = _reverse_replay_after_midpoint(data.crystal_angle, 350, 0, sign=-1.0)
+
     return TransportProblem(
         ion=ion,
         waveform_index=waveform_index,
@@ -220,8 +251,49 @@ def junction_problem(
             _mirror(data.mode_2, 350, 0),
             _mirror(data.mode_3, 350, 0),
         ),
-        theta=_mirror(data.crystal_angle, 350, 0),
-        phi=_constant(0.0),
+        theta=theta,
+        phi=phi,
+        z_start=jnp.array(0.0),
+        z_stop=jnp.array(1.0),
+    )
+
+
+def junction_constant_frequency_problem(
+    speed: float = 50 * constants.meter / constants.second, ion: IonSpecies = CALCIUM_40
+) -> TransportProblem:
+    """Same as junction_problem, but with the frequencies held constant.
+
+    Args:
+        ion (IonSpecies, optional): Ion species used to define the mass
+            and charge properties of the system. Defaults to CALCIUM_40.
+
+    Returns:
+        TransportProblem: the transport problem.
+    """
+    qx = _ramp(-350, 0, 0)
+    qy = _ramp(0, 0, 350)
+    qz = _mirror(data.yb_z_position, 350, 0)
+
+    def waveform_index(t: Scalar) -> Scalar:
+        return (speed / 700) * t
+
+    def qbar(z: Scalar) -> Vector:
+        return jnp.asarray([qx(z), qy(z), qz(z)]).flatten()
+
+    theta = _hold_after_midpoint(data.crystal_angle, 350, 0)
+    phi = _reverse_replay_after_midpoint(data.crystal_angle, 350, 0, sign=-1.0)
+
+    return TransportProblem(
+        ion=ion,
+        waveform_index=waveform_index,
+        qbar=qbar,
+        freqs=(
+            _constant(1.1216216216216217),
+            _constant(1.8828828828828827),
+            _constant(2.0),
+        ),
+        theta=theta,
+        phi=phi,
         z_start=jnp.array(0.0),
         z_stop=jnp.array(1.0),
     )
